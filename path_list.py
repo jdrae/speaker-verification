@@ -9,8 +9,10 @@ SPEAKER_INFO_PATH = DATA_PATH / "RSR2015/infos/spkrinfo.lst"
 VAL_TRIALS_PATH = DATA_PATH / "custom_trials/val_trials.txt"
 EVAL_TRIALS_PATH = DATA_PATH / "custom_trials/eval_trials.txt"
 
-
+TRAIN_SPEAKER_PATH = DATA_PATH / "custom_trials/train_speaker.txt"
 VAL_SPEAKER_PATH = DATA_PATH / "custom_trials/val_speaker.txt"
 EVAL_SPEAKER_PATH = DATA_PATH / "custom_trials/eval_speaker.txt"
 
-TRAIN_SPEAKER_PATH = DATA_PATH / "custom_trials/train_speaker.txt"
+TRAIN_DATA_PATH = FEATURE_PATH / "train"
+VAL_DATA_PATH = FEATURE_PATH / "val"
+EVAL_DATA_PATH = FEATURE_PATH / "eval"
