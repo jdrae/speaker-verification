@@ -16,3 +16,5 @@ EVAL_SPEAKER_PATH = DATA_PATH / "custom_trials/eval_speaker.txt"
 TRAIN_DATA_PATH = FEATURE_PATH / "train"
 VAL_DATA_PATH = FEATURE_PATH / "val"
 EVAL_DATA_PATH = FEATURE_PATH / "eval"
+
+LOG_PATH = DATA_PATH / "log"
