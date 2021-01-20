@@ -5,6 +5,7 @@ import torchaudio
 import numpy as np
 from path_list import *
 from speaker_list import *
+from hyper_params import hyper_params
 
 FEATURE_PATH.mkdir(parents=True, exist_ok=True)
 (FEATURE_PATH / "train").mkdir(parents=True, exist_ok=True)
@@ -39,7 +40,7 @@ for gender in ["male", "female"]:
                 win_length=int(sample_rate * 0.025),
                 hop_length=int(sample_rate * 0.01),
                 window_fn=torch.hamming_window,
-                n_mels=40
+                n_mels=hyper_params["n_mels"]
             )(waveform)
         # print(mel_specgram)
 
