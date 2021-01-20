@@ -10,7 +10,7 @@ from path_list import TRAIN_DATA_PATH, LOG_PATH
 from speaker_list import train_speaker_list
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
+print(device)
 """
 load data
 """
@@ -27,7 +27,7 @@ log set
 """
 if not os.path.exists(LOG_PATH):
     os.makedirs(LOG_PATH)
-log_path = LOG_PATH / "210119-1700.txt"
+# log_path = LOG_PATH / "210120-1300.txt"
 
 
 """
@@ -37,8 +37,8 @@ epochs = 20
 flat_shape = 40 * nb_time # 40 is n_mels
 label_shape = len(train_speaker_list)
 
-model = Logistic(flat_shape, label_shape)
-# model.to(device)
+model = Logistic(flat_shape, label_shape).to(device)
+
 opt = torch.optim.Adam(
             model.parameters(),
 			lr = 0.001,
@@ -46,4 +46,4 @@ opt = torch.optim.Adam(
 			amsgrad = 1)
 
 loss_func = torch.nn.CrossEntropyLoss()
-fit(epochs, model, loss_func, opt, train_ds_gen, log_path)
+fit(epochs, device, model, loss_func, opt, train_ds_gen, log_path)

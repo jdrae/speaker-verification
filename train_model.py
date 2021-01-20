@@ -2,7 +2,7 @@ from tqdm import tqdm
 import numpy as np
 
 
-def fit(epochs, model, loss_func, opt, train_dl, log_path):
+def fit(epochs, device, model, loss_func, opt, train_dl, log_path):
     loss_log = open(log_path, 'a', buffering=1)
     for epoch in tqdm(range(epochs)):
         model.train()
@@ -12,8 +12,8 @@ def fit(epochs, model, loss_func, opt, train_dl, log_path):
             xb = np.reshape(xb, (-1, xb.shape[1] * xb.shape[2]))
             # print("after:",xb.shape)
 
-            xb.cuda() # xb.to(device)
-            yb.cuda() # xb.to(device)
+            xb = xb.cuda()
+            yb = yb.cuda()
 
             output = model(xb)
             cce_loss = loss_func(output,yb)
@@ -22,7 +22,7 @@ def fit(epochs, model, loss_func, opt, train_dl, log_path):
             opt.step()
             opt.zero_grad()
 
-        print('CCE:', cce_loss)
+        print('Epoch:%d, cce:%.3f\n'%(epoch, cce_loss))
         loss_log.write('Epoch:%d, cce:%.3f\n'%(epoch, cce_loss))
     
     loss_log.close()
