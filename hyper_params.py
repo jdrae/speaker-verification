@@ -1,5 +1,6 @@
 hyper_params = {
-    "nb_time" : 324,
+    "nb_time" : 60, # 324
+    "window_size" : 12, # 20% of nb_time
     "n_mels": 40,
     "num_classes": 10,
     "batch_size": 100,
