@@ -1,15 +1,15 @@
-# # import comet_ml at the top of your file
-# from comet_ml import Experiment
+# import comet_ml at the top of your file
+from comet_ml import Experiment
 
-# # Create an experiment with your api key:
-# experiment = Experiment(
-#     api_key="inzhxYkHljXyQK3HWxaixKNnt",
-#     project_name="speaker-attention",
-#     workspace="jdrae",
-# )
+# Create an experiment with your api key:
+experiment = Experiment(
+    api_key="inzhxYkHljXyQK3HWxaixKNnt",
+    project_name="speaker-attention",
+    workspace="jdrae",
+)
 
 from hyper_params import hyper_params
-# experiment.log_parameters(hyper_params)
+experiment.log_parameters(hyper_params)
 
 import os
 from tqdm import tqdm
@@ -113,14 +113,14 @@ opt = torch.optim.Adam(
 loss_func = torch.nn.CrossEntropyLoss()
 
 
-for epoch in tqdm(range(epochs), desc='epoch'):
-	cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, LOG_PATH, epoch, device)
+# for epoch in tqdm(range(epochs), desc='epoch'):
+# 	cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
+# 	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, LOG_PATH, epoch, device)
 
-# with experiment.train():
-# 	for epoch in tqdm(range(epochs)):
-# 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-# 		experiment.log_metric("cce", cce_loss, step=epoch)
+with experiment.train():
+	for epoch in tqdm(range(epochs)):
+		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
+		experiment.log_metric("cce", cce_loss, step=epoch)
 
-# 		val_eer = test("val", model, val_ds_gen, val_utt, val_trial, LOG_PATH, epoch, device)
-# 		experiment.log_metric("val eer", val_eer, step=epoch)
+		val_eer = test("val", model, val_ds_gen, val_utt, val_trial, LOG_PATH, epoch, device)
+		experiment.log_metric("val eer", val_eer, step=epoch)

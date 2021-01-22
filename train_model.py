@@ -1,11 +1,19 @@
 from tqdm import tqdm
 import numpy as np
 import torch
+from sklearn.metrics import roc_curve
+from scipy.optimize import brentq
+from scipy.interpolate import interp1d
 
 def flatten(xb):
     xb = np.squeeze(xb, axis=1) # rm 1
     xb = np.reshape(xb, (-1, xb.shape[1] * xb.shape[2]))
     return xb
+
+
+def cos_sim(a, b):
+    return np.dot(a,b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
 
 
 def fit(model, loss_func, opt, ds_gen, device):
@@ -40,7 +48,7 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, save_dir, epoch, d
                 output = model(xb)
                 output_l.extend(output.cpu().numpy())  # (num_output, num_label)
             utt_emb_l.append(np.mean(output_l, axis=0))
-        utt_emb_d = {} # (num_utt, )
+        utt_emb_d = {} # (num_utt, num_label)
         if not len(utt_list) == len(utt_emb_l): # check
             print(len(utt_list), len(utt_emb_l))
             exit()
@@ -63,12 +71,17 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, save_dir, epoch, d
             print(len(pwd_list), len(spk_emb_d))
             exit()
         print(len(pwd_list), len(spk_emb_d))
-        exit
+
         # calculate eer
         y_score = [] # score for each sample
         y = [] # label for each sample
         
         for line in trial_list:
-            pwd_key, utt, label = line.strip().split('/')
-            y.append(pwd_key[:4])
-            y_score.append(cos_sim(embedding_d[utt]))
+            spk, utt, trg = line.strip().split('/')
+            y.append(int(trg))
+            y_score.append(cos_sim(spk_emb_d[spk], utt_emb_d[utt]))
+        # fpr: false positive rates
+        # tpr: true positive rates
+        fpr, tpr, thresholds = roc_curve(y, y_score, pos_label=1)
+        eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
+    return eer
