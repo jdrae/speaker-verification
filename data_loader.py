@@ -2,9 +2,6 @@ from pathlib import Path
 from torch.utils import data
 import numpy as np
 
-from speaker_list import *
-from path_list import *
-
 
 def get_utt_list(path):
     return [f.name for f in Path(path).rglob('*.npy')]

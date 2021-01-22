@@ -37,14 +37,18 @@ eval_utt = get_utt_list(EVAL_DATA_PATH)
 # get trial
 with open(VAL_TRIALS_PATH , 'r') as f:
 	val_trial = f.readlines()
+with open(VAL_PWD_PATH , 'r') as f:
+	val_pwd = f.readlines()
 with open(EVAL_TRIALS_PATH, 'r') as f:
 	eval_trial = f.readlines()
+with open(EVAL_PWD_PATH , 'r') as f:
+	eval_pwd = f.readlines()
 
 # for debugging
 train_utt = train_utt[:300]
-val_utt = val_utt[:100]
+val_utt = val_utt
 val_trial = val_trial[:100]
-eval_utt = eval_utt[:100]
+eval_utt = eval_utt[:1000]
 eval_trial = eval_trial[:100]
 
 # dataloader
@@ -111,7 +115,7 @@ loss_func = torch.nn.CrossEntropyLoss()
 
 for epoch in tqdm(range(epochs), desc='epoch'):
 	cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-	val_eer = test("val", model, val_ds_gen, val_utt, val_trial, LOG_PATH, epoch, device)
+	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, LOG_PATH, epoch, device)
 
 # with experiment.train():
 # 	for epoch in tqdm(range(epochs)):
