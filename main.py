@@ -1,15 +1,17 @@
-# import comet_ml at the top of your file
-from comet_ml import Experiment
-
-# Create an experiment with your api key:
-experiment = Experiment(
-    api_key="inzhxYkHljXyQK3HWxaixKNnt",
-    project_name="speaker-attention",
-    workspace="jdrae",
-)
-
 from hyper_params import hyper_params
-experiment.log_parameters(hyper_params)
+
+if hyper_params["comet"]:
+	# import comet_ml at the top of your file
+	from comet_ml import Experiment
+
+	# Create an experiment with your api key:
+	experiment = Experiment(
+		api_key="inzhxYkHljXyQK3HWxaixKNnt",
+		project_name="speaker-attention",
+		workspace="jdrae",
+	)
+
+	experiment.log_parameters(hyper_params)
 
 import os
 from tqdm import tqdm
@@ -37,8 +39,8 @@ eval_utt = get_utt_list(EVAL_DATA_PATH)
 # get trial
 with open(VAL_TRIALS_PATH , 'r') as f:
 	val_trial = f.readlines()
-# with open(DEV_VAL_TRIALS_PATH , 'r') as f: # test
-# 	dev_val_trial = f.readlines()
+with open(DEV_VAL_TRIALS_PATH , 'r') as f: # test
+	dev_val_trial = f.readlines()
 with open(VAL_PWD_PATH , 'r') as f:
 	val_pwd = f.readlines()
 with open(EVAL_TRIALS_PATH, 'r') as f:
@@ -46,13 +48,12 @@ with open(EVAL_TRIALS_PATH, 'r') as f:
 with open(EVAL_PWD_PATH , 'r') as f:
 	eval_pwd = f.readlines()
 
-# for debugging
-train_utt = train_utt
-val_utt = val_utt
-# val_trial = dev_val_trial
-val_trial = val_trial
-eval_utt = eval_utt
-eval_trial = eval_trial
+epochs = hyper_params["num_epochs"]
+if hyper_params["dev"]:
+	epochs = 1
+	train_utt = train_utt[:2000]
+	val_trial = dev_val_trial
+	eval_trial = eval_trial[:300]
 
 # dataloader
 train_ds 		= RSRDataset(
@@ -97,7 +98,6 @@ if not os.path.exists(LOG_PATH  / 'models/'):
 """
 train
 """
-epochs = hyper_params["num_epochs"]
 flat_shape = hyper_params["n_mels"] * hyper_params["nb_time"]
 label_shape = len(train_speaker_list)
 
@@ -110,31 +110,31 @@ opt = torch.optim.Adam(
 
 loss_func = torch.nn.CrossEntropyLoss()
 
-# best_eer = 99.
-# for epoch in tqdm(range(epochs), desc='epoch'):
-# 	cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-# 	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
-# 	print("epoch:",epoch)
-# 	print("train_cce:", cce_loss)
-# 	print("val_eer:%.3f"%(val_eer))
-# 	if float(val_eer) < best_eer:
-# 		print("New best EER: %f"%float(val_eer))
-# 		best_eer = float(val_eer)
-# eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
-# print("eval_eer:%.3f"%(eval_eer))
-
 best_eer = 99.
-with experiment.train():
-	for epoch in tqdm(range(epochs)):
+if hyper_params["comet"]:
+	with experiment.train():
+		for epoch in tqdm(range(epochs)):
+			cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
+			experiment.log_metric("cce", cce_loss, epoch=epoch)
+			
+			val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+			experiment.log_metric("val eer", val_eer, epoch=epoch)
+			if float(val_eer) < best_eer:
+				print("New best EER: %f"%float(val_eer))
+				best_eer = float(val_eer)
+
+	with experiment.test():
+		eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+		experiment.log_metric("eval eer", eval_eer, epoch=1)
+else:
+	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		experiment.log_metric("cce", cce_loss, epoch=epoch)
-		
 		val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
-		experiment.log_metric("val eer", val_eer, epoch=epoch)
+		print("epoch:",epoch)
+		print("train_cce:", cce_loss)
+		print("val_eer:%.3f"%(val_eer))
 		if float(val_eer) < best_eer:
 			print("New best EER: %f"%float(val_eer))
 			best_eer = float(val_eer)
-
-with experiment.test():
 	eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
-	experiment.log_metric("eval eer", eval_eer, epoch=1)
+	print("eval_eer:%.3f"%(eval_eer))
