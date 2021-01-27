@@ -22,8 +22,8 @@ import numpy as np
 from model import Logistic
 from train_model import fit, test
 from data_loader import get_utt_list, get_label_dic, RSRDataset
-from path_list import *
-from speaker_list import train_speaker_list
+from config.path_list import *
+from config.speaker_list import train_speaker_list
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 print(device)
@@ -98,7 +98,7 @@ if not os.path.exists(LOG_PATH  / 'models/'):
 """
 train
 """
-flat_shape = hyper_params["n_mels"] * hyper_params["nb_time"]
+flat_shape = hyper_params["numcep"] * hyper_params["nb_time"]
 label_shape = len(train_speaker_list)
 
 model = Logistic(flat_shape, label_shape).to(device)

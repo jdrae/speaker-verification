@@ -23,7 +23,7 @@ def fit(model, loss_func, opt, ds_gen, device):
         xb = xb.to(device)
         yb = yb.to(device)
 
-        output = model(xb)
+        output = model(xb.float())
         cce_loss = loss_func(output,yb)
         
         opt.zero_grad()
@@ -44,7 +44,7 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, epoch, device):
                 xb = flatten(xb)
                 xb = xb.to(device)
                 
-                output = model(xb,is_test=True)
+                output = model(xb.float(),is_test=True)
                 output_l.extend(output.cpu().numpy())  # (num_output, num_label)
             # average of tta
             utt_emb_l.append(np.mean(output_l, axis=0))

@@ -27,21 +27,22 @@ class RSRDataset(data.Dataset):
     def __getitem__(self, idx):
         item = self.utt_list[idx]
         X = np.load(self.base_dir / item)
+        X = np.transpose(X)
         if self.cut: # train set
-            nb_time = X.shape[2]
+            nb_time = X.shape[1]
             if nb_time > self.nb_time:
                 start_idx = np.random.randint(low = 0, high = nb_time - self.nb_time)
-                X = X[:, :, start_idx:start_idx + self.nb_time]
+                X = X[:, start_idx:start_idx + self.nb_time]
             elif nb_time < self.nb_time:
                 nb_dup = int(self.nb_time / nb_time) + 1
-                X = np.tile(X, (1, nb_dup))[:, :, :self.nb_time]
+                X = np.tile(X, (1, nb_dup))[:, :self.nb_time]
             else:
                 X = X
 
         # test time augmentation
         if self.is_test: # val, eval set
             list_X = []
-            x_time = X.shape[2]
+            x_time = X.shape[1]
             if x_time > self.nb_time:
                 total = self.nb_time * self.n_window - x_time
                 if total <= 0:
@@ -49,17 +50,17 @@ class RSRDataset(data.Dataset):
                 overlap = int(total / (self.n_window - 1))
                 for i in range(self.n_window):
                     if i == 0:
-                        list_X.append(X[:,:,:self.nb_time])
+                        list_X.append(X[:,:self.nb_time])
                     elif i < self.n_window - 1:
                         if (i*overlap+self.nb_time) > x_time:
                             continue
                         else:
-                            list_X.append(X[:,:, i*overlap: i*overlap+self.nb_time])
+                            list_X.append(X[:, i*overlap: i*overlap+self.nb_time])
                     else:
-                        list_X.append(X[:,:, -self.nb_time:])
+                        list_X.append(X[:, -self.nb_time:])
             elif x_time < self.nb_time:
                 nb_dup = int(self.nb_time / x_time) + 1
-                list_X.append(np.tile(X, (1,nb_dup))[:,:,:self.nb_time])
+                list_X.append(np.tile(X, (1,nb_dup))[:,:self.nb_time])
             else:
                 list_X.append(X)
             return list_X

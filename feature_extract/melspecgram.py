@@ -3,14 +3,14 @@ import re
 import torch
 import torchaudio
 import numpy as np
-from path_list import *
-from speaker_list import *
+from config.path_list import *
+from config.speaker_list import *
 from hyper_params import hyper_params
 
-FEATURE_PATH.mkdir(parents=True, exist_ok=True)
-(FEATURE_PATH / "train").mkdir(parents=True, exist_ok=True)
-(FEATURE_PATH / "val").mkdir(parents=True, exist_ok=True)
-(FEATURE_PATH / "eval").mkdir(parents=True, exist_ok=True)
+# FEATURE_PATH.mkdir(parents=True, exist_ok=True)
+# (FEATURE_PATH / "train").mkdir(parents=True, exist_ok=True)
+# (FEATURE_PATH / "val").mkdir(parents=True, exist_ok=True)
+# (FEATURE_PATH / "eval").mkdir(parents=True, exist_ok=True)
 
 def _pre_emphasis(x):
         return x[:,1:] - 0.97 * x[:, :-1]

@@ -10,11 +10,15 @@ class Logistic(nn.Module):
         self.fc3 = nn.Linear(512, 256)
         self.fc4 = nn.Linear(256, 128)
         self.fc5 = nn.Linear(128, label_shape) # (128,196)
+        self.relu = nn.ReLU()
 
     def forward(self, xb, is_test=False):
         xb = self.fc1(xb)
+        xb = self.relu(xb)
         xb = self.fc2(xb)
+        xb = self.relu(xb)
         xb = self.fc3(xb)
+        xb = self.relu(xb)
         xb = self.fc4(xb)
         if is_test: return xb
         pred = self.fc5(xb)
