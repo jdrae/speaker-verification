@@ -18,35 +18,35 @@ def cos_sim(a, b):
 
 def fit(model, loss_func, opt, ds_gen, device):
     model.train()
-    for xb, yb in ds_gen:
+    for xb, yb in tqdm(ds_gen, total=len(ds_gen)):
         xb = flatten(xb)
         xb = xb.to(device)
         yb = yb.to(device)
 
         output = model(xb)
         cce_loss = loss_func(output,yb)
-
+        
+        opt.zero_grad()
         cce_loss.backward()
         opt.step()
-        opt.zero_grad()
-
     return cce_loss
 
 # test time augmented
-def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, save_dir, epoch, device):
+def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, epoch, device):
     if mode not in ['val', 'eval']: raise ValueError('mode should be either "val" or "eval"')
     model.eval()
-    with torch.set_grad_enabled(False):
+    with torch.no_grad():
         # extract utterance embeddings from tta ds
         utt_emb_l = [] # (num_utt, num_label)
-        for m_batch in tqdm(ds_gen, total=len(ds_gen)):
+        for m_batch in tqdm(ds_gen, total=len(ds_gen)): # m_batch = n_window
             output_l = []
             for xb in m_batch:
                 xb = flatten(xb)
                 xb = xb.to(device)
                 
-                output = model(xb)
+                output = model(xb,is_test=True)
                 output_l.extend(output.cpu().numpy())  # (num_output, num_label)
+            # average of tta
             utt_emb_l.append(np.mean(output_l, axis=0))
         utt_emb_d = {} # (num_utt, num_label)
         if not len(utt_list) == len(utt_emb_l): # check
@@ -70,7 +70,6 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, save_dir, epoch, d
         if not len(pwd_list) == len(spk_emb_d): # check
             print(len(pwd_list), len(spk_emb_d))
             exit()
-        print(len(pwd_list), len(spk_emb_d))
 
         # calculate eer
         y_score = [] # score for each sample

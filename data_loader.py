@@ -10,14 +10,16 @@ def get_label_dic(speakers):
     return {label:idx for idx, label in enumerate(speakers)}
 
 class RSRDataset(data.Dataset):
-    def __init__(self, utt_list, base_dir, label_dic ={}, nb_time=0, cut=True, is_test=False, window_size=0):
+    def __init__(self, utt_list, base_dir, label_dic ={}, nb_time=0, cut=True, is_test=False, n_window=0):
         self.utt_list = utt_list
         self.nb_time = nb_time # integer, the number of timesteps for each mini-batch
         self.base_dir = base_dir
         self.label_dic = label_dic
         self.cut = cut
         self.is_test = is_test
+        self.n_window = n_window
         if self.nb_time == 0: raise ValueError('when adjusting utterance length, "nb_time" should be input')
+        if self.n_window == 0 and is_test: raise ValueError('when doing test time augmentation, "n_window" should be input')
         
     def __len__(self):
         return len(self.utt_list)
@@ -25,7 +27,6 @@ class RSRDataset(data.Dataset):
     def __getitem__(self, idx):
         item = self.utt_list[idx]
         X = np.load(self.base_dir / item)
-        
         if self.cut: # train set
             nb_time = X.shape[2]
             if nb_time > self.nb_time:
@@ -40,26 +41,28 @@ class RSRDataset(data.Dataset):
         # test time augmentation
         if self.is_test: # val, eval set
             list_X = []
-            nb_time = X.shape[2]
-            if nb_time> self.nb_time:
-                window_size = int(self.nb_time / 3)
-                step = self.nb_time - window_size
-                iteration = int( (nb_time - window_size) / step) +1
-                for i in range(iteration):
+            x_time = X.shape[2]
+            if x_time > self.nb_time:
+                total = self.nb_time * self.n_window - x_time
+                if total <= 0:
+                    total = x_time
+                overlap = int(total / (self.n_window - 1))
+                for i in range(self.n_window):
                     if i == 0:
-                        list_X.append(X[:, :, :self.nb_time])
-                    elif i < iteration - 1:
-                        list_X.append(X[:,:, i*step : i*step + self.nb_time])
+                        list_X.append(X[:,:,:self.nb_time])
+                    elif i < self.n_window - 1:
+                        if (i*overlap+self.nb_time) > x_time:
+                            continue
+                        else:
+                            list_X.append(X[:,:, i*overlap: i*overlap+self.nb_time])
                     else:
-                        list_X. append(X[:,:, -self.nb_time:])
-            elif nb_time < self.nb_time:
-                nb_dup = int(self.nb_time / nb_time) + 1
+                        list_X.append(X[:,:, -self.nb_time:])
+            elif x_time < self.nb_time:
+                nb_dup = int(self.nb_time / x_time) + 1
                 list_X.append(np.tile(X, (1,nb_dup))[:,:,:self.nb_time])
             else:
                 list_X.append(X)
-
             return list_X
 
-        # print("after:", X.shape)
-        y = self.label_dic[item.split('_')[0]]
+        y = self.label_dic[item.split('_')[0]] #return label index
         return X, y

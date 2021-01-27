@@ -7,6 +7,7 @@ TRIALS_PATH     = DATA_PATH / "custom_trials"
 
 SPEAKER_INFO_PATH = DATA_PATH / "RSR2015/infos/spkrinfo.lst"
 
+DEV_VAL_TRIALS_PATH = TRIALS_PATH / "dev_val_trials.txt"
 VAL_TRIALS_PATH = TRIALS_PATH / "val_trials.txt"
 EVAL_TRIALS_PATH = TRIALS_PATH / "eval_trials.txt"
 

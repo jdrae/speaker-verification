@@ -37,6 +37,8 @@ eval_utt = get_utt_list(EVAL_DATA_PATH)
 # get trial
 with open(VAL_TRIALS_PATH , 'r') as f:
 	val_trial = f.readlines()
+# with open(DEV_VAL_TRIALS_PATH , 'r') as f: # test
+# 	dev_val_trial = f.readlines()
 with open(VAL_PWD_PATH , 'r') as f:
 	val_pwd = f.readlines()
 with open(EVAL_TRIALS_PATH, 'r') as f:
@@ -45,11 +47,12 @@ with open(EVAL_PWD_PATH , 'r') as f:
 	eval_pwd = f.readlines()
 
 # for debugging
-train_utt = train_utt[:300]
+train_utt = train_utt
 val_utt = val_utt
-val_trial = val_trial[:100]
-eval_utt = eval_utt[:1000]
-eval_trial = eval_trial[:100]
+# val_trial = dev_val_trial
+val_trial = val_trial
+eval_utt = eval_utt
+eval_trial = eval_trial
 
 # dataloader
 train_ds 		= RSRDataset(
@@ -65,22 +68,18 @@ val_ds 			= RSRDataset(
 					is_test=True, # doesn't return label
 					cut=False, # do time augmentation instead of cutting
 					nb_time=hyper_params["nb_time"],
-					window_size = hyper_params["window_size"]
+					n_window = hyper_params["n_window"]
 				)
-# print(val_ds.__getitem__(0))
-# print(np.shape(val_ds.__getitem__(0)))
-# print(np.shape(val_ds.__getitem__(1)))
-
-val_ds_gen 		= data.DataLoader(val_ds, batch_size=1, shuffle=False) # batch size should be 1
+val_ds_gen 		= data.DataLoader(val_ds, batch_size=1, shuffle=False) # batch size should be 1?
 eval_ds 		= RSRDataset(
 					utt_list=eval_utt, 
 					base_dir=EVAL_DATA_PATH, 
 					is_test=True, # doesn't return label
 					cut=False, # do time augmentation instead of cutting
 					nb_time=hyper_params["nb_time"],
-					window_size = hyper_params["window_size"]
+					n_window = hyper_params["n_window"]
 				)
-eval_ds_gen 	= data.DataLoader(eval_ds, batch_size=1, shuffle=False) # batch size should be 1
+eval_ds_gen 	= data.DataLoader(eval_ds, batch_size=1, shuffle=False) # batch size should be 1?
 
 
 """
@@ -106,21 +105,36 @@ model = Logistic(flat_shape, label_shape).to(device)
 
 opt = torch.optim.Adam(
             model.parameters(),
-			lr = hyper_params["lr"],
-			weight_decay = hyper_params["weight_decay"],
-			amsgrad = 1)
+			lr = hyper_params["lr"]
+			)
 
 loss_func = torch.nn.CrossEntropyLoss()
 
-
+# best_eer = 99.
 # for epoch in tqdm(range(epochs), desc='epoch'):
 # 	cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-# 	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, LOG_PATH, epoch, device)
+# 	val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+# 	print("epoch:",epoch)
+# 	print("train_cce:", cce_loss)
+# 	print("val_eer:%.3f"%(val_eer))
+# 	if float(val_eer) < best_eer:
+# 		print("New best EER: %f"%float(val_eer))
+# 		best_eer = float(val_eer)
+# eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+# print("eval_eer:%.3f"%(eval_eer))
 
+best_eer = 99.
 with experiment.train():
 	for epoch in tqdm(range(epochs)):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		experiment.log_metric("cce", cce_loss, step=epoch)
+		experiment.log_metric("cce", cce_loss, epoch=epoch)
+		
+		val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+		experiment.log_metric("val eer", val_eer, epoch=epoch)
+		if float(val_eer) < best_eer:
+			print("New best EER: %f"%float(val_eer))
+			best_eer = float(val_eer)
 
-		val_eer = test("val", model, val_ds_gen, val_utt, val_trial, LOG_PATH, epoch, device)
-		experiment.log_metric("val eer", val_eer, step=epoch)
+with experiment.test():
+	eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+	experiment.log_metric("eval eer", eval_eer, epoch=1)
