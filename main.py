@@ -1,6 +1,6 @@
-from hyper_params import hyper_params
+from hyper_params import hyper_params as hp
 
-if hyper_params["comet"]:
+if hp["comet"]:
 	# import comet_ml at the top of your file
 	from comet_ml import Experiment
 
@@ -11,7 +11,7 @@ if hyper_params["comet"]:
 		workspace="jdrae",
 	)
 
-	experiment.log_parameters(hyper_params)
+	experiment.log_parameters(hp)
 
 import os
 from tqdm import tqdm
@@ -24,6 +24,8 @@ from train_model import fit, test
 from data_loader import get_utt_list, get_label_dic, RSRDataset
 from config.path_list import *
 from config.speaker_list import train_speaker_list
+from transformer.transformer import Transformer
+from transformer.encoder import Encoder
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 print(device)
@@ -48,10 +50,10 @@ with open(EVAL_TRIALS_PATH, 'r') as f:
 with open(EVAL_PWD_PATH , 'r') as f:
 	eval_pwd = f.readlines()
 
-epochs = hyper_params["num_epochs"]
-if hyper_params["dev"]:
-	epochs = 1
-	train_utt = train_utt[:2000]
+epochs = hp["num_epochs"]
+if hp["dev"]:
+	epochs = 20
+	train_utt = train_utt[:1000]
 	val_trial = dev_val_trial
 	eval_trial = eval_trial[:300]
 
@@ -60,27 +62,29 @@ train_ds 		= RSRDataset(
 					utt_list=train_utt, 
 					label_dic=train_labels, 
 					base_dir=TRAIN_DATA_PATH,
-					nb_time=hyper_params["nb_time"]
+					nb_time=hp["nb_time"]
 				)
-train_ds_gen	= data.DataLoader(train_ds, batch_size=hyper_params["batch_size"], shuffle=True)
+train_ds_gen	= data.DataLoader(train_ds, batch_size=hp["batch_size"], shuffle=True, drop_last = True, num_workers=hp["num_workers"])
 val_ds 			= RSRDataset(
 					utt_list=val_utt, 
 					base_dir=VAL_DATA_PATH, 
 					is_test=True, # doesn't return label
 					cut=False, # do time augmentation instead of cutting
-					nb_time=hyper_params["nb_time"],
-					n_window = hyper_params["n_window"]
+					tta=True,
+					nb_time=hp["nb_time"],
+					n_window = hp["n_window"]
 				)
-val_ds_gen 		= data.DataLoader(val_ds, batch_size=1, shuffle=False) # batch size should be 1?
+val_ds_gen 		= data.DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=hp["num_workers"]) # batch size should be 1?
 eval_ds 		= RSRDataset(
 					utt_list=eval_utt, 
 					base_dir=EVAL_DATA_PATH, 
 					is_test=True, # doesn't return label
 					cut=False, # do time augmentation instead of cutting
-					nb_time=hyper_params["nb_time"],
-					n_window = hyper_params["n_window"]
+					tta=True,
+					nb_time=hp["nb_time"],
+					n_window = hp["n_window"]
 				)
-eval_ds_gen 	= data.DataLoader(eval_ds, batch_size=1, shuffle=False) # batch size should be 1?
+eval_ds_gen 	= data.DataLoader(eval_ds, batch_size=1, shuffle=False,num_workers=hp["num_workers"]) # batch size should be 1?
 
 
 """
@@ -98,20 +102,33 @@ if not os.path.exists(LOG_PATH  / 'models/'):
 """
 train
 """
-flat_shape = hyper_params["numcep"] * hyper_params["nb_time"]
+# flat_shape = hp["numcep"] * hp["nb_time"]
+d_input = hp["numcep"]
 label_shape = len(train_speaker_list)
 
-model = Logistic(flat_shape, label_shape).to(device)
+# model = Logistic(flat_shape, label_shape).to(device)
+# model
+encoder = Encoder(
+			d_input = d_input,
+			n_layers = 2,
+			d_k = 512,
+			d_v = 512,
+			d_m = 512,
+			d_ff = 2048,
+		)
+
+model = Transformer(encoder, 512, label_shape).to(device)
 
 opt = torch.optim.Adam(
             model.parameters(),
-			lr = hyper_params["lr"]
+			lr = hp["lr"],
+			weight_decay = hp["weight_decay"]
 			)
 
 loss_func = torch.nn.CrossEntropyLoss()
 
 best_eer = 99.
-if hyper_params["comet"]:
+if hp["comet"]:
 	with experiment.train():
 		for epoch in tqdm(range(epochs)):
 			cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
@@ -129,12 +146,12 @@ if hyper_params["comet"]:
 else:
 	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+		# val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
 		print("epoch:",epoch)
 		print("train_cce:", cce_loss)
-		print("val_eer:%.3f"%(val_eer))
-		if float(val_eer) < best_eer:
-			print("New best EER: %f"%float(val_eer))
-			best_eer = float(val_eer)
-	eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
-	print("eval_eer:%.3f"%(eval_eer))
+	# 	print("val_eer:%.3f"%(val_eer))
+	# 	if float(val_eer) < best_eer:
+	# 		print("New best EER: %f"%float(val_eer))
+	# 		best_eer = float(val_eer)
+	# eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+	# print("eval_eer:%.3f"%(eval_eer))

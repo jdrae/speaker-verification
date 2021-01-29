@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 
 def flatten(xb):
     xb = np.squeeze(xb, axis=1) # rm 1
-    xb = np.reshape(xb, (-1, xb.shape[1] * xb.shape[2]))
+    xb = np.reshape(xb, (-1, xb.shape[-2] * xb.shape[-1]))
     return xb
 
 
@@ -19,13 +19,11 @@ def cos_sim(a, b):
 def fit(model, loss_func, opt, ds_gen, device):
     model.train()
     for xb, yb in tqdm(ds_gen, total=len(ds_gen)):
-        xb = flatten(xb)
-        xb = xb.to(device)
+        # xb = flatten(xb)
+        xb = xb.to(device) # (64, 13, 200) convolution in encoder
         yb = yb.to(device)
-
         output = model(xb.float())
         cce_loss = loss_func(output,yb)
-        
         opt.zero_grad()
         cce_loss.backward()
         opt.step()
@@ -38,10 +36,10 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, epoch, device):
     with torch.no_grad():
         # extract utterance embeddings from tta ds
         utt_emb_l = [] # (num_utt, num_label)
-        for m_batch in tqdm(ds_gen, total=len(ds_gen)): # m_batch = n_window
+        for m_batch in tqdm(ds_gen, total=len(ds_gen)): # m_batch = n_window (almost)
             output_l = []
             for xb in m_batch:
-                xb = flatten(xb)
+                # xb = flatten(xb)
                 xb = xb.to(device)
                 
                 output = model(xb.float(),is_test=True)
