@@ -26,6 +26,7 @@ from config.path_list import *
 from config.speaker_list import train_speaker_list
 from transformer.transformer import Transformer
 from transformer.encoder import Encoder
+from transformer.pooling import SelfAttentionPooling
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 print(device)
@@ -52,7 +53,7 @@ with open(EVAL_PWD_PATH , 'r') as f:
 
 epochs = hp["num_epochs"]
 if hp["dev"]:
-	epochs = 20
+	epochs = 3
 	train_utt = train_utt[:1000]
 	val_trial = dev_val_trial
 	eval_trial = eval_trial[:300]
@@ -108,16 +109,17 @@ label_shape = len(train_speaker_list)
 
 # model = Logistic(flat_shape, label_shape).to(device)
 # model
+d_m = 512
 encoder = Encoder(
 			d_input = d_input,
 			n_layers = 2,
-			d_k = 512,
-			d_v = 512,
-			d_m = 512,
+			d_k = d_m,
+			d_v = d_m,
+			d_m = d_m,
 			d_ff = 2048,
-		)
-
-model = Transformer(encoder, 512, label_shape).to(device)
+		).to(device)
+pooling = SelfAttentionPooling(d_m).to(device)
+model = Transformer(encoder, pooling, d_m, label_shape).to(device)
 
 opt = torch.optim.Adam(
             model.parameters(),
@@ -146,12 +148,12 @@ if hp["comet"]:
 else:
 	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		# val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+		val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
 		print("epoch:",epoch)
 		print("train_cce:", cce_loss)
-	# 	print("val_eer:%.3f"%(val_eer))
-	# 	if float(val_eer) < best_eer:
-	# 		print("New best EER: %f"%float(val_eer))
-	# 		best_eer = float(val_eer)
-	# eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
-	# print("eval_eer:%.3f"%(eval_eer))
+		print("val_eer:%.3f"%(val_eer))
+		if float(val_eer) < best_eer:
+			print("New best EER: %f"%float(val_eer))
+			best_eer = float(val_eer)
+	eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+	print("eval_eer:%.3f"%(eval_eer))
