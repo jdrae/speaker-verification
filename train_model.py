@@ -33,42 +33,48 @@ def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, epoch, device):
     if mode not in ['val', 'eval']: raise ValueError('mode should be either "val" or "eval"')
     model.eval()
     with torch.no_grad():
-        # extract utterance embeddings from tta ds
+        """extract utterance embeddings"""
         utt_emb_l = [] # (num_utt, num_feature)
-        for m_batch in tqdm(ds_gen, total=len(ds_gen)): # m_batch = n_window (almost)
-            output_l = []
-            for xb in m_batch:
-                # xb = flatten(xb)
-                xb = xb.to(device) #(1, 13, 200)
-                
-                output = model(xb.float(),is_test=True) # (1, 220)
-                output_l.extend(output.cpu().numpy())  # (num_output, num_feature)
-            # average of tta
-            utt_emb_l.append(np.mean(output_l, axis=0))
+
+        if mode =='val':
+            for xb in tqdm(ds_gen, total=len(ds_gen)):
+                xb = xb.to(device) #(64, 13, 200)
+                output = model(xb.float(),is_test=True) # (64, 220)
+                utt_emb_l.extend(output.cpu().numpy())
+        if mode =='eval': # tta
+            for m_batch in tqdm(ds_gen, total=len(ds_gen)): # len(m_batch) = n_window (almost)
+                output_l = []
+                for xb in m_batch:
+                    xb = xb.to(device) #(1, 13, 200)
+                    
+                    output = model(xb.float(),is_test=True) # (1, 220)
+                    output_l.append(output.cpu().numpy())  # (num_output, num_feature)
+                # average of tta
+                utt_emb_l.append(np.mean(output_l, axis=0))
+
+        """create utterance embeddings dictionary"""
         utt_emb_d = {} # (num_utt, num_feature)
         if not len(utt_list) == len(utt_emb_l): # check
             print(len(utt_list), len(utt_emb_l))
             exit()
-        for k, v in zip(utt_list, utt_emb_l):
+        for k, v in zip(utt_list, utt_emb_l):  # ? 순서
             k = k[:-4] # remove extension .npy
             utt_emb_d[k] = v
 
+        """speaker embeddings"""
         # speaker embedings avg. of utt-emb
         spk_emb_d = {} # (num_speaker, num_feature)
         for line in pwd_list:
             pwd_key, utt1, utt2, utt3 = line.strip().split('/')
             spk_emb_l = [] # (3, num_feature)
             for utt in [utt1, utt2, utt3]:
-                try:
-                    spk_emb_l.append(utt_emb_d[utt])
-                except:
-                    return ValueError("missing utterance embeding")
+                spk_emb_l.append(utt_emb_d[utt])
             spk_emb_d[pwd_key] = np.mean(spk_emb_l, axis=0) # (num_feature, )
         if not len(pwd_list) == len(spk_emb_d): # check
             print(len(pwd_list), len(spk_emb_d))
             exit()
 
-        # calculate eer
+        """calculate eer"""
         y_score = [] # score for each sample
         y = [] # label for each sample
         

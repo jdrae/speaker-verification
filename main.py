@@ -70,12 +70,12 @@ val_ds 			= RSRDataset(
 					utt_list=val_utt, 
 					base_dir=VAL_DATA_PATH, 
 					is_test=True, # doesn't return label
-					cut=False, # do time augmentation instead of cutting
-					tta=True,
+					cut=True, # do time augmentation instead of cutting
+					tta=False,
 					nb_time=hp["nb_time"],
 					n_window = hp["n_window"]
 				)
-val_ds_gen 		= data.DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=hp["num_workers"]) # batch size should be 1?
+val_ds_gen 		= data.DataLoader(val_ds, batch_size=hp["batch_size"], shuffle=False, num_workers=hp["num_workers"]) # batch size should be 1?
 eval_ds 		= RSRDataset(
 					utt_list=eval_utt, 
 					base_dir=EVAL_DATA_PATH, 
