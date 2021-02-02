@@ -13,10 +13,9 @@ class Encoder(nn.Module):
         self.d_v = d_v
         self.d_m = d_m
         self.d_ff = d_ff
-        self.dropout = dropout
 
-        self.conv1 = nn.Conv1d(d_input, 256, kernel_size=1)
-        self.conv2 = nn.Conv1d(256, 512, kernel_size=1)
+        self.conv1 = nn.Conv1d(d_input, 64, kernel_size=1)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=1)
 
         self.layer_norm_in = nn.LayerNorm(d_m)
         self.dropout = nn.Dropout(dropout)
@@ -52,7 +51,7 @@ class EncoderLayer(nn.Module):
         self.pos_ffn = PositionwiseFeedForward(d_m, d_ff, dropout=dropout)
 
     def forward(self, enc_input):
-        enc_slf_attn = self.slf_attn(enc_input, enc_input, enc_input)
+        enc_slf_attn = self.slf_attn(enc_input)
         enc_output = self.pos_ffn(enc_slf_attn)
 
         return enc_slf_attn

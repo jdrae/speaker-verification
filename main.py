@@ -53,10 +53,9 @@ with open(EVAL_PWD_PATH , 'r') as f:
 
 epochs = hp["num_epochs"]
 if hp["dev"]:
-	epochs = 3
+	epochs = 1
 	train_utt = train_utt[:1000]
 	val_trial = dev_val_trial
-	eval_trial = eval_trial[:300]
 
 # dataloader
 train_ds 		= RSRDataset(
@@ -91,14 +90,15 @@ eval_ds_gen 	= data.DataLoader(eval_ds, batch_size=1, shuffle=False,num_workers=
 """
 log set
 """
+from datetime import datetime
+from pytz import timezone
+now = datetime.now(timezone('Asia/Seoul'))
+f_name = now.strftime("%m%d-%H%M%S") + ".txt"
+r_name = now.strftime("%m%d-%H%M%S") + "-result.txt"
 if not os.path.exists(LOG_PATH):
     os.makedirs(LOG_PATH)
-if not os.path.exists(LOG_PATH  / 'results/'):
-	os.makedirs(LOG_PATH / 'results/')
-if not os.path.exists(LOG_PATH  / 'models/'):
-	os.makedirs(LOG_PATH / 'models/')
-# log_path = LOG_PATH / "210120-1536.txt"
-
+eer_path = LOG_PATH / f_name
+res_path = LOG_PATH / r_name
 
 """
 train
@@ -107,19 +107,19 @@ train
 d_input = hp["numcep"]
 label_shape = len(train_speaker_list)
 
-# model = Logistic(flat_shape, label_shape).to(device)
 # model
-d_m = 512
+d_m = hp["d_m"]
 encoder = Encoder(
 			d_input = d_input,
 			n_layers = 2,
 			d_k = d_m,
 			d_v = d_m,
 			d_m = d_m,
-			d_ff = 2048,
+			d_ff = hp["d_ff"],
+			dropout = 0.1
 		).to(device)
-pooling = SelfAttentionPooling(d_m).to(device)
-model = Transformer(encoder, pooling, d_m, label_shape).to(device)
+pooling = SelfAttentionPooling(d_m, dropout=0.1).to(device)
+model = Transformer(encoder, pooling, d_m, label_shape, dropout=0.2).to(device)
 
 opt = torch.optim.Adam(
             model.parameters(),
@@ -136,24 +136,44 @@ if hp["comet"]:
 			cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
 			experiment.log_metric("cce", cce_loss, epoch=epoch)
 			
-			val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+			val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
 			experiment.log_metric("val eer", val_eer, epoch=epoch)
 			if float(val_eer) < best_eer:
 				print("New best EER: %f"%float(val_eer))
 				best_eer = float(val_eer)
 
 	with experiment.test():
-		eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+		eval_eer = test(model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, device, tta=True)
 		experiment.log_metric("eval eer", eval_eer, epoch=1)
-else:
+elif hp["log"]:
+	f_eer = open(eer_path, "a+", buffering =1)
+	f_res = open(res_path, "a+", buffering =1)
+	f_eer.write("Epoch\ttrain_cce\tval_eer\n")
 	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		val_eer = test("val", model, val_ds_gen, val_utt, val_pwd, val_trial, epoch, device)
+		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
 		print("epoch:",epoch)
 		print("train_cce:", cce_loss)
 		print("val_eer:%.3f"%(val_eer))
 		if float(val_eer) < best_eer:
 			print("New best EER: %f"%float(val_eer))
 			best_eer = float(val_eer)
-	eval_eer = test("eval", model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, 1, device)
+		f_eer.write("%d\t%.4f\t%.4f\n"%(epoch, cce_loss, val_eer))
+	eval_eer = test(model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, device, tta=True)
+	print("eval_eer:%.3f"%(eval_eer))
+	f_res.write("Eval eer:%.3f\n"%(eval_eer))
+	f_res.write("Best eer:%.3f\n"%(best_eer))
+	f_eer.close()
+	f_res.close()
+else:
+	for epoch in tqdm(range(epochs), desc='epoch'):
+		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
+		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
+		print("epoch:",epoch)
+		print("train_cce:", cce_loss)
+		print("val_eer:%.3f"%(val_eer))
+		if float(val_eer) < best_eer:
+			print("New best EER: %f"%float(val_eer))
+			best_eer = float(val_eer)
+	eval_eer = test(model, eval_ds_gen, eval_utt, eval_pwd, eval_trial, device, tta=True)
 	print("eval_eer:%.3f"%(eval_eer))

@@ -19,7 +19,7 @@ class SelfAttention(nn.Module):
         nn.init.normal_(self.w_k.weight, mean=0, std=np.sqrt(2.0 / (d_m + d_k)))
         nn.init.normal_(self.w_v.weight, mean=0, std=np.sqrt(2.0 / (d_m + d_v)))
 
-        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5), attn_dropout=dropout)
+        self.attention_func = ScaledDotProductAttention(temperature=np.power(d_k, 0.5), attn_dropout=dropout)
 
         self.fc = nn.Linear(d_v, d_m)
         nn.init.xavier_normal_(self.fc.weight)
@@ -30,21 +30,21 @@ class SelfAttention(nn.Module):
 
 
 
-    def forward(self, q, k, v):
+    def forward(self, x):
 
         d_k, d_v = self.d_k, self.d_v
 
-        sz_b, len_q, d_m = q.size() # (64, 200, 512) 512 is d_m
-        sz_b, len_k, d_m = k.size()
-        sz_b, len_v, d_m = v.size()
+        sz_b, len_q, d_m = x.size() # (64, 200, 512) 512 is d_m
+        sz_b, len_k, d_m = x.size()
+        sz_b, len_v, d_m = x.size()
 
-        residual = q
+        residual = x
 
-        q = self.w_q(q) # (64, 200, 512) 512 is d_k
-        k = self.w_k(k)
-        v = self.w_v(v)
+        q = self.w_q(x) # (64, 200, 512) 512 is d_k
+        k = self.w_k(x)
+        v = self.w_v(x)
 
-        attn = self.attention(q, k, v) # scaled dot-product attention
+        attn = self.attention_func(q, k, v) # scaled dot-product attention
 
         attn = self.dropout(self.fc(attn)) # d_v to d_m
         attn = self.layer_norm(attn + residual) # residual connection

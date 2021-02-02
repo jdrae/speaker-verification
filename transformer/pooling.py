@@ -8,9 +8,9 @@ class SelfAttentionPooling(nn.Module):
         self.softmax = nn.Softmax(dim=2)
         self.w_c = nn.Linear(d_m, 1)
     
-    def forward(self, x): # (64, 200, 512)
-        attn = self.w_c(x).transpose(1,2) # (64, 1, 200)
+    def forward(self, x): # (bs, T, d_m)
+        attn = self.w_c(x).transpose(1,2) # (bs, 1, T)
         attn = self.softmax(attn)
-        attn = torch.bmm(attn, x) # (64, 1, 512)
+        attn = torch.bmm(attn, x) # (bs, 1, d_m)
         return attn
         

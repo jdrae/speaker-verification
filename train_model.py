@@ -19,9 +19,9 @@ def cos_sim(a, b):
 def fit(model, loss_func, opt, ds_gen, device):
     model.train()
     for xb, yb in tqdm(ds_gen, total=len(ds_gen)):
-        xb = xb.to(device) # (64, 13, 200) convolution in encoder
+        xb = xb.to(device) # (bs, numcep, T) convolution in encoder
         yb = yb.to(device)
-        output = model(xb.float()) # (64, 196)
+        output = model(xb.float()) # (bs, label_size)
         cce_loss = loss_func(output,yb)
         opt.zero_grad()
         cce_loss.backward()
@@ -29,28 +29,27 @@ def fit(model, loss_func, opt, ds_gen, device):
     return cce_loss
 
 # test time augmented
-def test(mode, model, ds_gen, utt_list, pwd_list, trial_list, epoch, device):
-    if mode not in ['val', 'eval']: raise ValueError('mode should be either "val" or "eval"')
+def test(model, ds_gen, utt_list, pwd_list, trial_list, device, tta):
     model.eval()
     with torch.no_grad():
         """extract utterance embeddings"""
         utt_emb_l = [] # (num_utt, num_feature)
 
-        if mode =='val':
-            for xb in tqdm(ds_gen, total=len(ds_gen)):
-                xb = xb.to(device) #(64, 13, 200)
-                output = model(xb.float(),is_test=True) # (64, 220)
-                utt_emb_l.extend(output.cpu().numpy())
-        if mode =='eval': # tta
+        if tta:
             for m_batch in tqdm(ds_gen, total=len(ds_gen)): # len(m_batch) = n_window (almost)
                 output_l = []
                 for xb in m_batch:
-                    xb = xb.to(device) #(1, 13, 200)
+                    xb = xb.to(device) #(1, numcep, T)
                     
-                    output = model(xb.float(),is_test=True) # (1, 220)
+                    output = model(xb.float(),is_test=True) # (1, fc2_feature)
                     output_l.append(output.cpu().numpy())  # (num_output, num_feature)
                 # average of tta
                 utt_emb_l.append(np.mean(output_l, axis=0))
+        else:
+            for xb in tqdm(ds_gen, total=len(ds_gen)):
+                xb = xb.to(device) #(bs, numcep, 200)
+                output = model(xb.float(),is_test=True) # (bs, fc2_feature)
+                utt_emb_l.extend(output.cpu().numpy())
 
         """create utterance embeddings dictionary"""
         utt_emb_d = {} # (num_utt, num_feature)
