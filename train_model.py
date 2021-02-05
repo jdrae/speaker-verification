@@ -63,11 +63,15 @@ def test(model, ds_gen, utt_list, pwd_list, trial_list, device, tta):
         """speaker embeddings"""
         # speaker embedings avg. of utt-emb
         spk_emb_d = {} # (num_speaker, num_feature)
-        for line in pwd_list:
-            pwd_key, utt1, utt2, utt3 = line.strip().split('/')
+        for pwd_key, utt1, utt2, utt3 in pwd_list:
             spk_emb_l = [] # (3, num_feature)
             for utt in [utt1, utt2, utt3]:
-                spk_emb_l.append(utt_emb_d[utt])
+                try:
+                    spk_emb_l.append(utt_emb_d[utt])
+                except:
+                    print(pwd_key, utt1, utt2, utt3)
+                    print("missing utterance embeding")
+                    exit()
             spk_emb_d[pwd_key] = np.mean(spk_emb_l, axis=0) # (num_feature, )
         if not len(pwd_list) == len(spk_emb_d): # check
             print(len(pwd_list), len(spk_emb_d))
@@ -76,11 +80,14 @@ def test(model, ds_gen, utt_list, pwd_list, trial_list, device, tta):
         """calculate eer"""
         y_score = [] # score for each sample
         y = [] # label for each sample
-        
-        for line in trial_list:
-            spk, utt, trg = line.strip().split('/')
+        for spk, utt, trg in trial_list:
             y.append(int(trg))
-            y_score.append(cos_sim(spk_emb_d[spk], utt_emb_d[utt]))
+            try:
+                y_score.append(cos_sim(spk_emb_d[spk], utt_emb_d[utt]))
+            except:
+                print(spk, utt, trg)
+                print("missing speaker or utterance embeding")
+                exit()
         # fpr: false positive rates
         # tpr: true positive rates
         fpr, tpr, thresholds = roc_curve(y, y_score, pos_label=1)

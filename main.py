@@ -40,22 +40,52 @@ val_utt = get_utt_list(VAL_DATA_PATH)
 eval_utt = get_utt_list(EVAL_DATA_PATH)
 
 # get trial
-with open(VAL_TRIALS_PATH , 'r') as f:
-	val_trial = f.readlines()
-with open(DEV_VAL_TRIALS_PATH , 'r') as f: # test
-	dev_val_trial = f.readlines()
-with open(VAL_PWD_PATH , 'r') as f:
-	val_pwd = f.readlines()
-with open(EVAL_TRIALS_PATH, 'r') as f:
-	eval_trial = f.readlines()
-with open(EVAL_PWD_PATH , 'r') as f:
-	eval_pwd = f.readlines()
+print("read trials")
+with open(DEV_VAL_TRIALS_PATH, 'r') as f: # dev val trials
+	li = f.readlines()
+dev_val_trial = []
+for line in li:
+	dev_val_trial.append(tuple(line.strip().split('/')))
 
+with open(VAL_TRIALS_PATH, 'r') as f: # val trials
+	li = f.readlines()
+val_trial = []
+for line in li:
+	val_trial.append(tuple(line.strip().split('/')))
+with open(VAL_PWD_PATH, 'r') as f: # val pwd
+	li = f.readlines()
+val_pwd = []
+for line in li:
+	val_pwd.append(tuple(line.strip().split('/')))
+
+with open(EVAL_TRIALS_PATH, 'r') as f: # eval trials
+	li = f.readlines()
+eval_trial = []
+for line in li:
+	eval_trial.append(tuple(line.strip().split('/')))
+with open(EVAL_PWD_PATH, 'r') as f: # eval pwd
+	li = f.readlines()
+eval_pwd = []
+for line in li:
+	eval_pwd.append(tuple(line.strip().split('/')))
+print("got trials")
+
+# parameters
 epochs = hp["num_epochs"]
 if hp["dev"]:
 	epochs = 1
 	train_utt = train_utt[:1000]
-	val_trial = dev_val_trial
+	# val_trial = dev_val_trial
+val_tral = val_trial[:411310]
+eval_tral = eval_trial[:377471]
+
+val_tta = False
+if val_tta:
+	val_bs = 1
+	val_cut = False
+else:
+	val_bs = 64
+	val_cut = True
 
 # dataloader
 train_ds 		= RSRDataset(
@@ -69,12 +99,12 @@ val_ds 			= RSRDataset(
 					utt_list=val_utt, 
 					base_dir=VAL_DATA_PATH, 
 					is_test=True, # doesn't return label
-					cut=True, # do time augmentation instead of cutting
-					tta=False,
+					cut = val_cut, # do time augmentation instead of cutting
+					tta=val_tta,
 					nb_time=hp["nb_time"],
 					n_window = hp["n_window"]
 				)
-val_ds_gen 		= data.DataLoader(val_ds, batch_size=hp["batch_size"], shuffle=False, num_workers=hp["num_workers"]) # batch size should be 1?
+val_ds_gen 		= data.DataLoader(val_ds, batch_size=val_bs, shuffle=False, num_workers=hp["num_workers"]) # batch size should be 1?
 eval_ds 		= RSRDataset(
 					utt_list=eval_utt, 
 					base_dir=EVAL_DATA_PATH, 
@@ -136,7 +166,7 @@ if hp["comet"]:
 			cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
 			experiment.log_metric("cce", cce_loss, epoch=epoch)
 			
-			val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
+			val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=val_tta)
 			experiment.log_metric("val eer", val_eer, epoch=epoch)
 			if float(val_eer) < best_eer:
 				print("New best EER: %f"%float(val_eer))
@@ -151,7 +181,7 @@ elif hp["log"]:
 	f_eer.write("Epoch\ttrain_cce\tval_eer\n")
 	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
+		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=val_tta)
 		print("epoch:",epoch)
 		print("train_cce:", cce_loss)
 		print("val_eer:%.3f"%(val_eer))
@@ -168,7 +198,7 @@ elif hp["log"]:
 else:
 	for epoch in tqdm(range(epochs), desc='epoch'):
 		cce_loss = fit(model, loss_func, opt, train_ds_gen, device)
-		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=False)
+		val_eer = test(model, val_ds_gen, val_utt, val_pwd, val_trial, device, tta=val_tta)
 		print("epoch:",epoch)
 		print("train_cce:", cce_loss)
 		print("val_eer:%.3f"%(val_eer))

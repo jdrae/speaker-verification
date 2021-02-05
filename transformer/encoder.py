@@ -27,11 +27,11 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         # print(x.shape) # (64,13,200)
-        x = self.conv1(x) # (64, 256, 200)
-        x = self.conv2(x) # (64, 512, 200)
-        x = x.transpose(1,2) # (64, 200, 512)
+        x = self.conv1(x) # (64, 128, 200)
+        x = self.conv2(x) # (64, 256, 200)
+        x = x.transpose(1,2) # (64, 200, 256)
 
-        output = self.dropout(self.layer_norm_in(x)) # (64, 200, 512)
+        output = self.dropout(self.layer_norm_in(x)) # (64, 200, 256)
 
         for enc_layer in self.layer_stack:
             output = enc_layer(output)
